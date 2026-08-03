@@ -1794,20 +1794,31 @@ function updateCategoryCSSVariables() {
   for (const [key, cat] of Object.entries(HEALTH_CATEGORIES)) {
     document.documentElement.style.setProperty(`--cat-${key}`, cat.color);
   }
-  // Also update cat-badge colors
-  const styleSheet = document.styleSheets[0];
+  // Also update cat-badge colors.
+  // نکته: document.styleSheets[0] همیشه استایل خودِ برنامه نیست — اگر شیت گوگل‌فونت
+  // (که از دامنه دیگری بارگذاری می‌شود) زودتر در لیست باشد، خواندن cssRules آن
+  // یک SecurityError پرتاب می‌کند. به‌جای آن، شیت داخلی (بدون href) را پیدا می‌کنیم.
+  let styleSheet = null;
+  for (const sheet of document.styleSheets) {
+    if (!sheet.href) { styleSheet = sheet; break; }
+  }
   if (styleSheet) {
-    // Remove old dynamic cat-badge rules
-    for (let i = styleSheet.cssRules.length - 1; i >= 0; i--) {
-      const rule = styleSheet.cssRules[i];
-      if (rule.selectorText && rule.selectorText.includes('.cat-badge.')) {
-        styleSheet.deleteRule(i);
+    try {
+      // Remove old dynamic cat-badge rules
+      for (let i = styleSheet.cssRules.length - 1; i >= 0; i--) {
+        const rule = styleSheet.cssRules[i];
+        if (rule.selectorText && rule.selectorText.includes('.cat-badge.')) {
+          styleSheet.deleteRule(i);
+        }
       }
-    }
-    // Add new cat-badge rules
-    for (const [key, cat] of Object.entries(HEALTH_CATEGORIES)) {
-      const css = `.cat-badge.${key} { background: ${cat.color}26; color: ${cat.color}; box-shadow: inset 0 0 0 1px ${cat.color}47; }`;
-      try { styleSheet.insertRule(css, styleSheet.cssRules.length); } catch(e) {}
+      // Add new cat-badge rules
+      for (const [key, cat] of Object.entries(HEALTH_CATEGORIES)) {
+        const css = `.cat-badge.${key} { background: ${cat.color}26; color: ${cat.color}; box-shadow: inset 0 0 0 1px ${cat.color}47; }`;
+        try { styleSheet.insertRule(css, styleSheet.cssRules.length); } catch(e) {}
+      }
+    } catch (e) {
+      // شیت در دسترس نیست (مثلاً cross-origin) — رنگ نشان‌ها همچنان از طریق
+      // متغیرهای CSS بالا اعمال می‌شود، فقط رنگ badge داخل کلاس آپدیت نمی‌شود
     }
   }
 }
@@ -3393,6 +3404,7 @@ function closeModal() {
 
 // Modal helpers
 let _modalExerciseType = 'walk';
+let _modalLearningType = 'reading';
 let _modalSleepQuality = 3;
 
 function toggleModalBool(keyOrParams) {
@@ -3429,6 +3441,16 @@ function selectExerciseType(typeOrParams) {
   });
 }
 
+function selectLearningType(typeOrParams) {
+  const type = typeof typeOrParams === 'string' ? typeOrParams : (typeOrParams && typeOrParams.type);
+  if (!type) return;
+  _modalLearningType = type;
+  document.getElementById('modal-learning-type').value = type;
+  document.querySelectorAll('#modal-body .exercise-types button').forEach(b => {
+    b.classList.toggle('active', b.textContent === LEARNING_TYPES[type]);
+  });
+}
+
 function selectQuality(qOrParams) {
   const q = typeof qOrParams === 'object' ? qOrParams.q : qOrParams;
   _modalSleepQuality = q;
@@ -3439,7 +3461,54 @@ function selectQuality(qOrParams) {
   }
 }
 
-function saveHabitModal(key) {
+function saveHabitModal(key, isNew) {
+  if (isNew) {
+    const nameInput = document.getElementById('new-habit-name');
+    const name = (nameInput ? nameInput.value : '').trim();
+    if (!name) {
+      toast('نام عادت را وارد کن', 'error');
+      if (nameInput) nameInput.focus();
+      return;
+    }
+    const icon = ((document.getElementById('new-habit-icon') || {}).value || '').trim() || '⭐';
+    const color = (document.getElementById('new-habit-color') || {}).value || '#39d0d8';
+    const unit = (document.getElementById('new-habit-unit') || {}).value || 'boolean';
+    const category = (document.getElementById('new-habit-category') || {}).value || 'growth';
+    const targetRaw = ((document.getElementById('new-habit-target') || {}).value || '').trim();
+    const decreasing = unit === 'count' && !!(document.getElementById('new-habit-decreasing') || {}).checked;
+    const reasonsRaw = (document.getElementById('new-habit-reasons') || {}).value || '';
+    const reasons = reasonsRaw.split(',').map(r => r.trim()).filter(Boolean);
+
+    const newKey = 'custom' + Date.now();
+    const newDef = { name, icon, color, unit, category, isDefault: false, archived: false };
+
+    if (unit !== 'boolean') {
+      let targetVal;
+      if (unit === 'minutes' || unit === 'count') {
+        const n = parseInt(targetRaw, 10);
+        targetVal = isNaN(n) ? (unit === 'minutes' ? 20 : 8) : n;
+      } else {
+        targetVal = targetRaw || (unit === 'time' ? '07:00' : '23:00');
+      }
+      newDef.defaultTarget = targetVal;
+      if (!appData.settings.goals.custom) appData.settings.goals.custom = {};
+      appData.settings.goals.custom[newKey] = { target: targetVal, unit, label: name };
+    }
+    if (decreasing) {
+      newDef.decreasing = true;
+      newDef.reasons = reasons.length ? reasons : ['استرس','عادت','خستگی','لذت','بیکاری','دیگر'];
+    }
+
+    if (!appData.settings.customHabits) appData.settings.customHabits = {};
+    appData.settings.customHabits[newKey] = newDef;
+    mergeCustomSettings();
+    saveAll();
+    closeModal();
+    renderCurrentTab();
+    toast(icon + ' عادت «' + name + '» اضافه شد', 'success');
+    return;
+  }
+
   const ds = localDateStr();
   const hd = getDayHabits(ds);
   const def = HABIT_DEFS[key];
@@ -3453,13 +3522,14 @@ function saveHabitModal(key) {
       // already toggled
       break;
     case 'count':
-      if (key === 'smoking') {
-        hd[key].lastReason = (document.getElementById('modal-smoking-reason') || {value:''}).value || 'عادت';
+      if (def.decreasing) {
+        hd[key].lastReason = (document.getElementById('modal-' + key + '-reason') || {value:''}).value || (def.reasons && def.reasons[0]) || 'عادت';
       }
       break;
     case 'minutes':
       hd[key].minutes = +(document.getElementById('modal-minutes-' + key) || {value:''}).value || 0;
       if (key === 'exercise') hd[key].type = _modalExerciseType;
+      if (key === 'learning') hd[key].type = _modalLearningType;
       break;
     case 'time':
       hd[key].time = (document.getElementById('modal-wakeup-time') || {value:''}).value || '';
