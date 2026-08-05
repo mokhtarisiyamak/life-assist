@@ -2977,8 +2977,8 @@ function navCalMonth(deltaOrParams) {
   renderDashboard();
 }
 
-function goToJournalDateAndEdit(params) {
-  const ds = params.ds;
+function goToJournalDateAndEdit(dsOrParams) {
+  const ds = typeof dsOrParams === 'object' ? dsOrParams.ds : dsOrParams;
   goToDate(ds);
   journalViewMode = 'editor';
   renderJournal();
@@ -3851,6 +3851,7 @@ function setJournalFilterMood(valOrParams) {
 function clearFilterTags() { journalFilterTags = []; renderJournalList(document.getElementById('tab-journal')); }
 
 function toggleFilterTag(tagOrParams) {
+  const tag = typeof tagOrParams === 'object' ? tagOrParams.tag : tagOrParams;
   const idx = journalFilterTags.indexOf(tag);
   if (idx>=0) journalFilterTags.splice(idx,1); else journalFilterTags.push(tag);
   renderJournalList(document.getElementById('tab-journal'));
@@ -4111,8 +4112,14 @@ function addFinanceEntry() {
   saveAll(); renderFinance(); toast('💰 تراکنش ثبت شد','success');
 }
 
-function deleteFinanceEntryByParams(params) {
-  deleteFinanceEntry(params.dateStr, params.idx);
+function deleteFinanceEntryByParams(dateStrOrParams, idxOrUndefined) {
+  let dateStr, idx;
+  if (typeof dateStrOrParams === 'object' && dateStrOrParams) {
+    dateStr = dateStrOrParams.dateStr; idx = dateStrOrParams.idx;
+  } else {
+    dateStr = dateStrOrParams; idx = idxOrUndefined;
+  }
+  deleteFinanceEntry(dateStr, idx);
 }
 
 function deleteFinanceEntry(dateStr, idx) {
@@ -4279,9 +4286,9 @@ function renderAnalytics() {
   panel.innerHTML = `
     <!-- Stats Grid -->
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-value text-accent">${totalDays}</div><div class="stat-label">روز ثبت شده</div></div>
-      <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-value text-green">${avgScore}</div><div class="stat-label">میانگین امتیاز</div></div>
-      <div class="stat-card"><div class="stat-icon">🔥</div><div class="stat-value" style="color:var(--gold);">${bestOverallStreak}</div><div class="stat-label">بهترین استریک</div></div>
+      <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-value text-accent">${d.totalDays}</div><div class="stat-label">روز ثبت شده</div></div>
+      <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-value text-green">${d.avgScore}</div><div class="stat-label">میانگین امتیاز</div></div>
+      <div class="stat-card"><div class="stat-icon">🔥</div><div class="stat-value" style="color:var(--gold);">${d.bestOverallStreak}</div><div class="stat-label">بهترین استریک</div></div>
     </div>
     <!-- Weekly Insights -->
     ${insightsHtml}
@@ -4620,8 +4627,8 @@ function renderSettings() {
           <span class="fw-600">${escapeHtml(def.name)}</span>
           ${isCustom ? '<span class="badge badge-amber" style="font-size:9px;">هدف سفارشی</span>' : ''}
         </div>
-        <input type="${def.unit === 'time' ? 'time' : 'number'}" value="${target}"
-          style="width:100px;" onchange="updateGoal('${key}', this.value)" ${def.unit === 'boolean' ? 'disabled' : ''} ${def.unit === 'time' ? 'step="1"' : 'min="0" step="1"'} placeholder="هدف">
+        <input type="${(def.unit === 'time' || def.unit === 'quality') ? 'time' : 'number'}" value="${target}"
+          style="width:100px;" onchange="updateGoal('${key}', this.value)" ${def.unit === 'boolean' ? 'disabled' : ''} ${(def.unit === 'time' || def.unit === 'quality') ? 'step="1"' : 'min="0" step="1"'} placeholder="هدف">
         <span class="text-dim text-sm">${unitLabel}</span>
         ${isCustom ? `<button class="btn btn-sm btn-danger" data-action="deleteCustomGoal" data-params='{"key":"${key}"}'>🗑️</button>` : ''}
       </div>
@@ -4712,20 +4719,25 @@ function renderSettings() {
   for (const key of habitKeysWithReminders) {
     const def = HABIT_DEFS[key];
     const r = rem[key] || { enabled: false, time: '09:00', msg: 'یادآوری!' };
+    const titleHtml = def
+      ? `<div class="label">${def.icon} ${escapeHtml(def.name)}</div>`
+      : `<input type="text" value="${escapeHtmlAttr(r.title || '')}" style="width:120px;font-weight:600;"
+           onchange="updateReminderTitle('${key}', this.value)" placeholder="نام یادآور">`;
     remindersHtml += `
       <div class="toggle-row">
         <div>
-          <div class="label">${def?def.icon:'⏰'} ${def?def.name:key}</div>
+          ${titleHtml}
           <div class="desc">${escapeHtml(r.msg)}</div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
-          <input type="text" value="${escapeHtmlAttr(r.msg)}" style="width:150px;"
+          <input type="text" value="${escapeHtmlAttr(r.msg)}" style="width:130px;"
             onchange="updateReminderMsg('${key}', this.value)" placeholder="پیام">
           <input type="time" value="${r.time}" onchange="updateReminderTime('${key}', this.value)" style="width:100px;padding:4px 8px;font-size:12px;">
           <label class="toggle-switch">
             <input type="checkbox" ${r.enabled?'checked':''} onchange="toggleReminder('${key}',this.checked)">
             <span class="slider"></span>
           </label>
+          ${!def ? `<button class="btn btn-sm btn-danger" data-action="deleteReminder" data-params='{"key":"${key}"}'>🗑️</button>` : ''}
         </div>
       </div>
     `;
@@ -5043,7 +5055,7 @@ function updateGoal(key, value) {
   const def = HABIT_DEFS[key];
   if (!def) return;
 
-  const parsed = def.unit === 'time' ? value : parseInt(value);
+  const parsed = (def.unit === 'time' || def.unit === 'quality') ? value : parseInt(value);
   if (isNaN(parsed) && def.unit !== 'time') return;
 
   if (!appData.settings.goals.custom) appData.settings.goals.custom = {};
@@ -5058,15 +5070,65 @@ function updateGoal(key, value) {
 }
 
 function addCustomGoal() {
-  // Show a modal to select a custom habit and set its goal
-  const customHabits = Object.keys(appData.settings.customHabits || {}).filter(k => !HABIT_DEFS[k]?.isDefault);
-  if (customHabits.length === 0) {
-    toast('هیچ عادت سفارشی برای تعریف هدف وجود ندارد', 'info');
+  // Show a modal to pick a custom habit and set its target
+  const eligible = Object.entries(HABIT_DEFS).filter(([k, def]) =>
+    def && !def.isDefault && !def.archived && def.unit !== 'boolean'
+  );
+  if (eligible.length === 0) {
+    toast('عادت سفارشی با واحد عددی یا زمانی برای تعریف هدف وجود ندارد', 'info');
     return;
   }
-  // Simple approach: just enable editing for all custom habits
-  renderSettings();
-  toast('اهداف عادت‌های سفارشی قابل ویرایش هستند', 'info');
+
+  document.getElementById('modal-title').textContent = '🎯 هدف برای عادت سفارشی';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group">
+      <label>عادت</label>
+      <select id="goal-habit-select">
+        ${eligible.map(([k, def]) => `<option value="${k}">${def.icon} ${escapeHtml(def.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>مقدار هدف</label>
+      <input type="number" id="goal-target-input" min="0" step="1" placeholder="مثال: 20">
+    </div>
+  `;
+  document.getElementById('modal-left-actions').innerHTML = '';
+
+  const syncTargetInput = () => {
+    const key = document.getElementById('goal-habit-select').value;
+    const def = HABIT_DEFS[key];
+    const input = document.getElementById('goal-target-input');
+    if (!def || !input) return;
+    const current = getHabitTarget(key);
+    if (def.unit === 'time' || def.unit === 'quality') {
+      input.type = 'time';
+      input.removeAttribute('min');
+      input.removeAttribute('step');
+      input.value = (typeof current === 'string' && current) ? current : (def.unit === 'quality' ? '23:00' : '07:00');
+    } else {
+      input.type = 'number';
+      input.min = '0';
+      input.step = '1';
+      input.value = (typeof current === 'number') ? current : '';
+    }
+  };
+  document.getElementById('goal-habit-select').addEventListener('change', syncTargetInput);
+  syncTargetInput();
+
+  document.getElementById('modal-save').onclick = () => {
+    const key = document.getElementById('goal-habit-select').value;
+    const raw = (document.getElementById('goal-target-input').value || '').trim();
+    if (!raw) {
+      toast('مقدار هدف را وارد کن', 'error');
+      return;
+    }
+    updateGoal(key, raw);
+    closeModal();
+    toast('🎯 هدف ذخیره شد', 'success');
+  };
+
+  document.getElementById('modal-overlay').classList.add('active');
+  trapFocus('modal');
 }
 
 function deleteCustomGoal(keyOrParams) {
@@ -5097,10 +5159,13 @@ function updateJournalPrompt(time, index, value) {
   saveAll();
 }
 
-function deleteJournalPrompt(paramsOrObj) {
-  const params = typeof paramsOrObj === 'object' ? paramsOrObj : {};
-  const time = params.time;
-  const index = params.index;
+function deleteJournalPrompt(timeOrParams, indexOrUndefined) {
+  let time, index;
+  if (typeof timeOrParams === 'object' && timeOrParams) {
+    time = timeOrParams.time; index = timeOrParams.index;
+  } else {
+    time = timeOrParams; index = indexOrUndefined;
+  }
   const customArr = time === 'morning' ? appData.settings.customMorningPrompts : appData.settings.customEveningPrompts;
   const defaultLen = time === 'morning' ? DEFAULT_JOURNAL_MORNING_PROMPTS.length : DEFAULT_JOURNAL_EVENING_PROMPTS.length;
 
@@ -5112,9 +5177,8 @@ function deleteJournalPrompt(paramsOrObj) {
   }
 }
 
-function addJournalPrompt(paramsOrObj) {
-  const params = typeof paramsOrObj === 'object' ? paramsOrObj : {};
-  const time = params.time;
+function addJournalPrompt(timeOrParams) {
+  const time = typeof timeOrParams === 'object' ? timeOrParams.time : timeOrParams;
   const customArr = time === 'morning' ? appData.settings.customMorningPrompts : appData.settings.customEveningPrompts;
   customArr.push('پرامپت جدید...');
   mergeCustomSettings();
@@ -5135,9 +5199,8 @@ function updateJournalTag(index, value) {
   saveAll();
 }
 
-function deleteJournalTag(paramsOrObj) {
-  const params = typeof paramsOrObj === 'object' ? paramsOrObj : {};
-  const index = params.index;
+function deleteJournalTag(indexOrParams) {
+  const index = typeof indexOrParams === 'object' ? indexOrParams.index : indexOrParams;
   const defaultLen = DEFAULT_JOURNAL_TAGS.length;
   if (index >= defaultLen && appData.settings.customTags[index - defaultLen] !== undefined) {
     appData.settings.customTags.splice(index - defaultLen, 1);
@@ -5230,9 +5293,29 @@ function updateReminderMsg(key, value) {
 }
 
 function addReminder() {
-  // Simple: add a reminder entry
+  const name = (prompt('نام یادآور را وارد کن:', '') || '').trim() || 'یادآور جدید';
   const key = 'custom' + Date.now();
-  appData.settings.reminders[key] = { enabled: true, time: '09:00', msg: 'یادآوری جدید' };
+  appData.settings.reminders[key] = { enabled: true, time: '09:00', msg: 'یادآوری جدید', title: name };
+  saveAll();
+  renderSettings();
+}
+
+function updateReminderTitle(key, value) {
+  if (!appData.settings.reminders[key]) {
+    appData.settings.reminders[key] = { enabled: false, time: '09:00', msg: '' };
+  }
+  appData.settings.reminders[key].title = value;
+  saveAll();
+  renderSettings();
+}
+
+function deleteReminder(keyOrParams) {
+  const key = typeof keyOrParams === 'string' ? keyOrParams : (keyOrParams && keyOrParams.key);
+  if (!key) return;
+  if (HABIT_DEFS[key]) return; // یادآورهای متصل به عادت پیش‌فرض از این راه حذف نمی‌شوند
+  if (!appData.settings.reminders[key]) return;
+  if (!confirm('این یادآور حذف شود؟')) return;
+  delete appData.settings.reminders[key];
   saveAll();
   renderSettings();
 }
@@ -5287,10 +5370,14 @@ function updateFinanceCategory(type, index, value) {
   }
 }
 
-function deleteFinanceCategory(paramsOrObj) {
-  const params = typeof paramsOrObj === 'object' ? paramsOrObj : {};
-  const type = params.type;
-  const index = params.index;
+function deleteFinanceCategory(typeOrParams, indexOrUndefined) {
+  let type, index;
+  if (typeof typeOrParams === 'object' && typeOrParams) {
+    type = typeOrParams.type; index = typeOrParams.index;
+  } else {
+    type = typeOrParams; index = indexOrUndefined;
+  }
+  if (!type || !DEFAULT_FINANCE_CATEGORIES[type] || !appData.settings.customFinanceCategories[type]) return;
   const defaultLen = DEFAULT_FINANCE_CATEGORIES[type].length;
   const customArr = appData.settings.customFinanceCategories[type];
   if (index >= defaultLen && customArr[index - defaultLen] !== undefined) {
@@ -5302,9 +5389,9 @@ function deleteFinanceCategory(paramsOrObj) {
   }
 }
 
-function addFinanceCategory(paramsOrObj) {
-  const params = typeof paramsOrObj === 'object' ? paramsOrObj : {};
-  const type = params.type;
+function addFinanceCategory(typeOrParams) {
+  const type = typeof typeOrParams === 'object' ? typeOrParams.type : typeOrParams;
+  if (!type || !appData.settings.customFinanceCategories[type]) return;
   appData.settings.customFinanceCategories[type].push('دسته جدید');
   mergeCustomSettings();
   saveAll();
