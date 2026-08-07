@@ -117,9 +117,9 @@ body {
   background: var(--bg-hover);
   border-color: rgba(255,255,255,0.24);
 }
-.card, .habit-card, .mood-card, .streak-bar, .streak-calendar,
+.card, .habit-card, .streak-bar, .streak-calendar,
 .mini-cal, .setting-section, .stat-card, .asset-card, .achievement-badge,
-.journal-entry-card, .prompt-card, .ai-profile-card, .weekly-stat-card,
+.journal-entry-card, .review-entry, .prompt-card, .ai-profile-card, .weekly-stat-card,
 .avg7-card, .health-rings-card, .toast {
   background: var(--glass);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
@@ -217,12 +217,6 @@ body {
   background: linear-gradient(120deg, var(--accent), var(--purple));
   -webkit-background-clip: text; background-clip: text; color: transparent; }
 .header-left { display: flex; align-items: center; gap: 14px; }
-.header-left .slider-group {
-  display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--text-dim);
-  padding: 6px 12px; border-radius: 12px;
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-}
 input[type="range"] {
   -webkit-appearance: none; appearance: none;
   height: 6px; border-radius: 4px;
@@ -446,16 +440,11 @@ label { font-size: 13px; color: var(--text-dim); margin-bottom: 5px; display: bl
 }
 .calendar-cell:hover .tooltip { display: block; }
 
-/* ========== MOOD SLIDERS ========== */
-.mood-section { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 26px; }
-.mood-card { border-radius: var(--radius-md); padding: 16px; }
-.mood-card label { font-size: 12px; margin-bottom: 8px; font-weight: 600; }
-.mood-card .mood-val { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 800; margin-bottom: 8px; }
-.mood-card input[type="range"] { width: 100%; }
-.mood-card input[type="range"]::-webkit-slider-thumb {
-  width: 20px; height: 20px;
-  border: 2px solid var(--bg);
-}
+/* ========== JOURNAL REVIEW ========== */
+.review-entry { border-radius: var(--radius-lg); padding: 16px 18px; margin-bottom: 20px; }
+.review-prompt { font-size: 12px; color: var(--text-dim); margin-top: 10px; margin-bottom: 3px; }
+.review-prompt:first-child { margin-top: 0; }
+.review-answer { font-size: 15px; line-height: 1.9; margin-bottom: 4px; }
 
 /* ========== MINI CALENDAR ========== */
 .mini-cal { border-radius: var(--radius-lg); padding: 18px; }
@@ -647,9 +636,7 @@ label { font-size: 13px; color: var(--text-dim); margin-bottom: 5px; display: bl
   #main { right: 0; }
   #hamburger { display: block; }
   .habits-grid { grid-template-columns: 1fr; }
-  .mood-section { grid-template-columns: 1fr; }
   #main { padding: 16px; }
-  .header-left .slider-group { display: none; }
 }
 
 /* iOS SAFE AREA */
@@ -1075,18 +1062,6 @@ label { font-size: 13px; color: var(--text-dim); margin-bottom: 5px; display: bl
     <span class="page-title" id="page-title">داشبورد</span>
     <span class="date-info" id="header-date"></span>
   </div>
-  <div class="header-left">
-    <div class="slider-group">
-      <span>حالت:</span>
-      <input type="range" id="mood-quick" min="1" max="10" value="5" data-action-input="updateQuickMood">
-      <span class="val" id="mood-quick-val">5</span>
-    </div>
-    <div class="slider-group">
-      <span>انرژی:</span>
-      <input type="range" id="energy-quick" min="1" max="10" value="5" data-action-input="updateQuickEnergy">
-      <span class="val" id="energy-quick-val">5</span>
-    </div>
-  </div>
 </header>
 
 <!-- MAIN CONTENT -->
@@ -1099,7 +1074,6 @@ label { font-size: 13px; color: var(--text-dim); margin-bottom: 5px; display: bl
     </div>
   </div>
   <!-- HABITS -->
-  <div class="tab-panel" id="tab-habits"></div>
   <!-- JOURNAL -->
   <div class="tab-panel" id="tab-journal"></div>
   <!-- FINANCE -->
@@ -1289,7 +1263,6 @@ let LEARNING_TYPES = { ...DEFAULT_LEARNING_TYPES };
 
 const TABS = [
   { id: 'dashboard', icon: '🏠', name: 'داشبورد' },
-  { id: 'habits',    icon: '🎯', name: 'عادت‌ها' },
   { id: 'journal',   icon: '📓', name: 'ژورنال' },
   { id: 'finance',   icon: '💰', name: 'مالی' },
   { id: 'analytics', icon: '📊', name: 'تحلیل‌ها' },
@@ -1383,20 +1356,25 @@ const jalali = {
   },
   j_to_g(jy, jm, jd) {
     jy += 1595;
-    let days = -355668 + (365 * jy) + this._div(jy, 33) * 8 + this._div(jy + 4, 1461)
-             + this._mod(jm - 1, 6) * 31 + this._mod(jm, 6) * (jd - 1);
-    let gy = 4 * this._div(days, 1461);
-    days -= this._div(gy, 4) * 1461;
-    if (days > 365) { gy += this._div(days - 1, 365); days = this._mod(days - 1, 365); }
-    if (days < 166) { days += 1; }
-    else { days += 1; }
-    let gd = days;
-    let gm = 1;
-    const dim = [0,31,29,31,30,31,30,31,31,30,31,30,31];
-    for (let i = 1; i <= 12; i++) {
-      if (gd <= dim[i]) { gm = i; break; }
-      gd -= dim[i];
+    let days = -355668 + (365 * jy) + (this._div(jy, 33) * 8) + this._div(this._mod(jy, 33) + 3, 4)
+             + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
+    let gy = 400 * this._div(days, 146097);
+    days = this._mod(days, 146097);
+    if (days > 36524) {
+      days--;
+      gy += 100 * this._div(days, 36524);
+      days = this._mod(days, 36524);
+      if (days >= 365) days++;
     }
+    gy += 4 * this._div(days, 1461);
+    days = this._mod(days, 1461);
+    if (days > 365) { gy += this._div(days - 1, 365); days = this._mod(days - 1, 365); }
+    let gd = days + 1;
+    const isLeapG = (gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0);
+    const dim = [0,31,isLeapG ? 29 : 28,31,30,31,30,31,31,30,31,30,31];
+    let gm = 0;
+    while (gm < 12 && gd > dim[gm+1]) { gm++; gd -= dim[gm]; }
+    gm = gm + 1;
     return { gy, gm, gd };
   },
   days_in_month(jy, jm) {
@@ -1504,6 +1482,7 @@ function defaultData() {
     },
     mood: {},         // { 'YYYY/MM/DD': { mood: N, energy: N, stress: N } }
     journal: {},      // { 'YYYY/MM/DD': { morning, evening, mood, tags, morningAnswers, eveningAnswers } }
+    tasks: {},        // { 'YYYY/MM/DD': [{id, text, done}] } — daily one-off checklist, not a recurring habit
     finance: {},      // { 'YYYY/MM/DD': { entries: [{type, amount, desc, category, time}] } }
     assets: { cash: 0, crypto: 0, bike: 0, camera: 0, phone: 0 },
     reminders: { lastReminded: {} }  // { wakeUp: timestamp, ... }
@@ -1587,7 +1566,6 @@ function validateAndMigrate(data) {
   for (const dateStr of Object.keys(data.journal)) {
     const jd = data.journal[dateStr];
     if (jd && typeof jd === 'object') {
-      jd.mood = Math.max(1, Math.min(10, jd.mood || 5));
       jd.tags = Array.isArray(jd.tags) ? jd.tags : [];
       jd.morningAnswers = Array.isArray(jd.morningAnswers) ? jd.morningAnswers : [];
       jd.eveningAnswers = Array.isArray(jd.eveningAnswers) ? jd.eveningAnswers : [];
@@ -1656,6 +1634,7 @@ function migrateV4toV5(data) {
   if (!data.settings.customTags) data.settings.customTags = [];
   if (!data.settings.customAssets) data.settings.customAssets = [];
   if (!data.settings.customFinanceCategories) data.settings.customFinanceCategories = { income: [], expense: [] };
+  if (!data.tasks) data.tasks = {};
 
   // Ensure goals.custom exists
   if (!data.settings.goals.custom) data.settings.goals.custom = {};
@@ -1877,8 +1856,8 @@ function compressAndRetry() {
     for (const dateStr of Object.keys(appData.journal)) {
       const jd = appData.journal[dateStr];
       if (jd && !jd.morning && !jd.evening && (jd.morningAnswers || []).every(a => !a) && (jd.eveningAnswers || []).every(a => !a)) {
-        // Keep journal entries — they may have just mood/tags
-        const hasContent = jd.mood !== undefined || (jd.tags && jd.tags.length > 0);
+        // Keep journal entries — they may have just tags
+        const hasContent = jd.tags && jd.tags.length > 0;
         if (!hasContent) delete appData.journal[dateStr];
       }
     }
@@ -1908,7 +1887,7 @@ function getDayMood(dateStr) {
 }
 
 function getDayJournal(dateStr) {
-  if (!appData.journal[dateStr]) appData.journal[dateStr] = { morning: '', evening: '', mood: 5, tags: [], morningAnswers: ['', '', ''], eveningAnswers: ['', '', ''] };
+  if (!appData.journal[dateStr]) appData.journal[dateStr] = { morning: '', evening: '', tags: [], morningAnswers: ['', '', ''], eveningAnswers: ['', '', ''] };
   return appData.journal[dateStr];
 }
 
@@ -2150,7 +2129,6 @@ function switchTab(tabId) {
 function renderCurrentTab() {
   switch (currentTab) {
     case 'dashboard': renderDashboard(); break;
-    case 'habits': renderHabits(); break;
     case 'journal': renderJournal(); break;
     case 'finance': renderFinance(); break;
     case 'analytics': renderAnalytics(); break;
@@ -2299,22 +2277,6 @@ function showOnboarding() {
 }
 
 function renderHeader() {
-}
-
-function updateQuickMood(val) {
-  const v = val || document.getElementById('mood-quick').value;
-  document.getElementById('mood-quick-val').textContent = v;
-  const ds = localDateStr();
-  getDayMood(ds).mood = +v;
-  saveAll();
-}
-
-function updateQuickEnergy(val) {
-  const v = val || document.getElementById('energy-quick').value;
-  document.getElementById('energy-quick-val').textContent = v;
-  const ds = localDateStr();
-  getDayMood(ds).energy = +v;
-  saveAll();
 }
 
 // ==========================================================
@@ -2569,37 +2531,6 @@ function renderDashboardHabitCard(key) {
     </div>`;
 }
 
-function renderActiveGoals(dayData) {
-  const goals = appData.settings.goals;
-  const goalKeys = ['wakeUp', 'exercise', 'sleep', 'water', 'smoking', 'learning', 'journal', 'social', 'tradingDiscipline', 'bike'];
-  const customGoals = goals.custom || {};
-  const allGoalKeys = [...new Set([...goalKeys, ...Object.keys(customGoals)])];
-
-  return allGoalKeys.map(key => {
-    const def = HABIT_DEFS[key];
-    if (!def || def.archived) return '';
-    const target = getHabitTarget(key);
-    const completion = getHabitCompletion(key, dayData);
-    const pct = Math.round(completion * 100);
-    const done = isHabitDone(key, dayData);
-
-    return `
-      <div class="card goal-card" style="text-align:center;cursor:pointer;" data-action="openHabitModal" data-params='{"key":"${key}"}'>
-        <div style="font-size:24px;margin-bottom:4px;">${def.icon}</div>
-        <div class="fw-600 text-sm">${escapeHtml(def.name)}</div>
-        <div class="text-dim text-sm" style="margin:4px 0;">هدف: ${escapeHtml(String(target))} ${def.unit === 'minutes' ? 'دقیقه' : def.unit === 'count' ? (def.decreasing ? 'نخ' : 'لیوان') : def.unit === 'time' ? '' : def.unit === 'quality' ? '' : ''}</div>
-        <div style="width:60px;height:60px;margin:8px auto;position:relative;">
-          ${svgRing(completion, def.color, 60, 5)}
-          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;">
-            <span style="font-size:14px;font-weight:700;font-family:'JetBrains Mono',monospace;">${pct}%</span>
-            ${done ? '<span style="font-size:10px;color:var(--green);">✓</span>' : ''}
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
 function toggleBoolHabit(keyOrParams) {
   const key = typeof keyOrParams === 'string' ? keyOrParams : (keyOrParams && keyOrParams.key);
   if (!key) return;
@@ -2814,8 +2745,6 @@ function renderDashboard() {
     </div>`;
   }
 
-  // Mood / Stress
-  const md = getDayMood(ds);
   const catScores = calcCategoryScores(dayData);
   const avg7 = calc7DayAverage(selectedDate);
   const yesterdayDs = jalali.format(jalali.addDays(selectedDate, -1));
@@ -2872,42 +2801,18 @@ function renderDashboard() {
 
     <div class="streak-bar">${streakHtml}</div>
 
-    <!-- Active Goals Section -->
-    <div class="card mb-24">
-      <div class="card-header">
-        <span class="card-title">🎯 اهداف فعال</span>
-        <button class="btn btn-sm btn-primary" data-action="openHabitModal" data-params='{"key":"__new__"}'>+ عادت جدید</button>
-      </div>
-      <div class="goals-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;">
-        ${renderActiveGoals(dayData)}
-      </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="section-title" style="margin-bottom:0;">🎯 عادت‌ها و اهداف امروز</div>
+      <button class="btn btn-sm btn-primary" data-action="openHabitModal" data-params='{"key":"__new__"}'>+ عادت جدید</button>
     </div>
-
-    <div class="section-title">عادت‌های امروز</div>
     <div class="habits-grid">
       ${Object.keys(HABIT_DEFS).filter(k => !HABIT_DEFS[k].archived).map(k => renderDashboardHabitCard(k)).join('')}
     </div>
 
+    ${renderDailyTasksCard(ds)}
+
     <div class="dash-two-col">
       <div>
-        <div class="mood-section">
-          <div class="mood-card">
-            <label>😊 حالت روحی</label>
-            <div class="mood-val" style="color:var(--accent);">${md.mood}<span style="font-size:12px;color:var(--text-faint)">/۱۰</span></div>
-            <input type="range" min="1" max="10" value="${md.mood}" data-action-input="setMoodVal" data-params-input='{"key":"mood"}'>
-          </div>
-          <div class="mood-card">
-            <label>⚡ انرژی</label>
-            <div class="mood-val" style="color:var(--green);">${md.energy}<span style="font-size:12px;color:var(--text-faint)">/۱۰</span></div>
-            <input type="range" min="1" max="10" value="${md.energy}" data-action-input="setMoodVal" data-params-input='{"key":"energy"}'>
-          </div>
-          <div class="mood-card">
-            <label>😰 استرس</label>
-            <div class="mood-val" style="color:var(--red);">${md.stress}<span style="font-size:12px;color:var(--text-faint)">/۱۰</span></div>
-            <input type="range" min="1" max="10" value="${md.stress}" data-action-input="setMoodVal" data-params-input='{"key":"stress"}'>
-          </div>
-        </div>
-
         <div class="card quick-journal">
           <div class="card-header">
             <span class="card-title">📝 یادداشت سریع</span>
@@ -2938,20 +2843,6 @@ function renderDashboard() {
   `;
 }
 
-function setMoodVal(key, val) {
-  const ds = localDateStr();
-  getDayMood(ds)[key] = +val;
-  saveAll();
-  // Update display without full re-render
-  const panel = document.getElementById('tab-dashboard');
-  const moodCards = panel.querySelectorAll('.mood-card');
-  const keys = ['mood', 'energy', 'stress'];
-  const idx = keys.indexOf(key);
-  if (idx >= 0 && moodCards[idx]) {
-    moodCards[idx].querySelector('.mood-val').innerHTML = `${val}<span style="font-size:12px;color:var(--text-faint)">/۱۰</span>`;
-  }
-}
-
 function saveQuickNote(val) {
   const ds = localDateStr();
   const j = getDayJournal(ds);
@@ -2962,13 +2853,7 @@ function saveQuickNote(val) {
 function navDay(deltaOrParams) {
   const delta = typeof deltaOrParams === 'object' ? deltaOrParams.delta : deltaOrParams;
   selectedDate = jalali.addDays(selectedDate, delta);
-  // Update quick mood/energy sliders
-  const md = getDayMood(localDateStr());
-  document.getElementById('mood-quick').value = md.mood;
-  document.getElementById('mood-quick-val').textContent = md.mood;
-  document.getElementById('energy-quick').value = md.energy;
-  document.getElementById('energy-quick-val').textContent = md.energy;
-  renderDashboard();
+  renderCurrentTab();
 }
 
 function navCalMonth(deltaOrParams) {
@@ -2982,6 +2867,78 @@ function goToJournalDateAndEdit(dsOrParams) {
   goToDate(ds);
   journalViewMode = 'editor';
   renderJournal();
+}
+
+function renderDailyTasksCard(ds) {
+  const tasks = (appData.tasks && appData.tasks[ds]) || [];
+  const doneCount = tasks.filter(t => t.done).length;
+  return `
+    <div class="card mb-24 mt-16">
+      <div class="card-header">
+        <span class="card-title">✅ کارهای امروز</span>
+        ${tasks.length > 0 ? `<span class="text-sm text-dim mono">${doneCount}/${tasks.length}</span>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:${tasks.length ? '12px' : '0'};">
+        <input type="text" id="new-task-input" placeholder="کار جدید امروز..." style="flex:1;" onkeydown="if(event.key==='Enter'){addDailyTask()}">
+        <button class="btn btn-sm btn-primary" onclick="addDailyTask()">+ افزودن</button>
+      </div>
+      ${tasks.length === 0 ? '' : tasks.map(t => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
+          <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleDailyTask('${t.id}')">
+          <input type="text" value="${escapeHtmlAttr(t.text)}" style="flex:1;background:transparent;border:none;color:${t.done ? 'var(--text-faint)' : 'var(--text)'};${t.done ? 'text-decoration:line-through;' : ''}" onchange="editDailyTask('${t.id}', this.value)">
+          <button class="btn btn-sm btn-danger" onclick="deleteDailyTask('${t.id}')" style="padding:2px 8px;">🗑️</button>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function getDayTasks(dateStr) {
+  if (!appData.tasks) appData.tasks = {};
+  if (!appData.tasks[dateStr]) appData.tasks[dateStr] = [];
+  return appData.tasks[dateStr];
+}
+
+function addDailyTask() {
+  const input = document.getElementById('new-task-input');
+  const text = ((input && input.value) || '').trim();
+  if (!text) return;
+  const tasks = getDayTasks(localDateStr());
+  tasks.push({ id: 'task' + Date.now(), text, done: false });
+  saveAll();
+  renderDashboard();
+}
+
+function toggleDailyTask(id) {
+  const tasks = getDayTasks(localDateStr());
+  const t = tasks.find(x => x.id === id);
+  if (!t) return;
+  t.done = !t.done;
+  saveAll();
+  renderDashboard();
+}
+
+function editDailyTask(id, value) {
+  const tasks = getDayTasks(localDateStr());
+  const idx = tasks.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  const text = (value || '').trim();
+  if (!text) {
+    tasks.splice(idx, 1);
+  } else {
+    tasks[idx].text = text;
+  }
+  saveAll();
+  renderDashboard();
+}
+
+function deleteDailyTask(id) {
+  const tasks = getDayTasks(localDateStr());
+  const idx = tasks.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  tasks.splice(idx, 1);
+  saveAll();
+  renderDashboard();
 }
 
 function goToDate(dateStrOrParams) {
@@ -3044,66 +3001,6 @@ function renderStreakCalendar() {
 
   html += '</div></div></div>';
   return html;
-}
-
-// -- Habits Tab --
-function renderHabits() {
-  const panel = document.getElementById('tab-habits');
-  const ds = localDateStr();
-  const hd = getDayHabits(ds);
-
-  const catOrder = ['physical', 'mental', 'growth'];
-  let listHtml = catOrder.map(catKey => {
-    const catDef = HEALTH_CATEGORIES[catKey];
-    // Filter out archived habits unless we're showing them
-    const items = Object.entries(HABIT_DEFS)
-      .filter(([, def]) => (def.category || 'growth') === catKey)
-      .filter(([, def]) => !def.archived); // Archived habits hidden by default
-    const cards = items.map(([key, def]) => {
-      const streak = calcStreak(key);
-      const best = calcBestStreak(key);
-      const done = isHabitDone(key, hd);
-      return `
-        <div class="card mb-16" style="cursor:pointer;" data-action="openHabitModal" data-params='{"key":"${key}"}'>
-          <div style="display:flex;align-items:center;gap:12px;">
-            <span style="font-size:24px;">${def.icon}</span>
-            <div style="flex:1;">
-              <div style="display:flex;align-items:center;gap:8px;">
-                <span class="fw-600">${escapeHtml(def.name)}</span>
-                <span class="cat-badge ${catKey}">${catDef.icon} ${catDef.name}</span>
-                ${def.isDefault ? '' : '<span class="badge badge-amber" style="font-size:9px;">سفارشی</span>'}
-              </div>
-              <div class="text-sm text-dim">
-                ${done ? '<span class="text-green">✓ انجام شده</span>' : '<span class="text-red">✗ انجام نشده</span>'}
-                &nbsp;·&nbsp; streak: ${streak} روز · بهترین: ${best} روز
-              </div>
-            </div>
-            <button class="btn btn-sm" data-action="openHabitModal" data-params='{"key":"${key}"}'>⚙️</button>
-          </div>
-        </div>`;
-    }).join('');
-    // Show archived count if any
-    const archivedCount = Object.entries(HABIT_DEFS).filter(([, def]) => (def.category || 'growth') === catKey && def.archived).length;
-    const archivedInfo = archivedCount > 0 ? `<span style="font-size:10px;color:var(--text-faint);margin-right:8px;">(${archivedCount} آرشیو)</span>` : '';
-    return `<div class="section-title" style="color:var(${'--' + catKey});display:flex;align-items:center;gap:6px;">${catDef.icon} ${catDef.name} ${archivedInfo}<span style="font-size:11px;color:var(--text-faint);font-weight:400;">— ${catDef.weight}٪ از امتیاز روز</span></div>${cards}`;
-  }).join('<div style="height:8px;"></div>');
-
-  panel.innerHTML = `
-    <div class="day-nav">
-      <button data-action="navDay" data-params='{"delta":1}'>→</button>
-      <span class="current-date">${jalali.formatFull(selectedDate)}</span>
-      <button data-action="navDay" data-params='{"delta":-1}'>←</button>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div class="section-title">عادت‌های روز ${ds}</div>
-      <button class="btn btn-primary btn-sm" data-action="openHabitModal" data-params='{"key":"__new__"}'>+ عادت جدید</button>
-    </div>
-    ${listHtml}
-    <div class="mt-24">
-      <div class="section-title">تقویم عادت‌ها</div>
-      ${renderStreakCalendar()}
-    </div>
-  `;
 }
 
 // ==========================================================
@@ -3672,22 +3569,144 @@ let journalFilterTags = [];
 let journalFilterDateFrom = '';
 let journalFilterDateTo = '';
 
+function journalTabsHtml(mode) {
+  return `<div class="journal-tabs mb-16">
+    <button class="${mode==='editor'?'active':''}" data-action="switchJournalViewMode" data-params='{"mode":"editor"}'>✏️ ویرایشگر</button>
+    <button class="${mode==='list'?'active':''}" data-action="switchJournalViewMode" data-params='{"mode":"list"}'>📋 لیست</button>
+    <button class="${mode==='review'?'active':''}" data-action="switchJournalViewMode" data-params='{"mode":"review"}'>📖 مرور</button>
+    <button data-action="exportJournalMarkdown">📄 خروجی MD</button>
+  </div>`;
+}
+
+function journalHasContent(jd) {
+  if (!jd) return false;
+  return !!(jd.morning || jd.evening || (jd.morningAnswers||[]).some(Boolean) || (jd.eveningAnswers||[]).some(Boolean));
+}
+
+function calcJournalWritingStreak() {
+  const dates = Object.keys(appData.journal).filter(ds => journalHasContent(appData.journal[ds])).sort();
+  if (dates.length === 0) return 0;
+  let best = 1, cur = 1;
+  for (let i = 1; i < dates.length; i++) {
+    const prevP = jalali.parseJalali(dates[i-1]);
+    const prevDate = jalali.jToJsDate(prevP.jy, prevP.jm, prevP.jd);
+    const nextExpected = jalali.format(jalali.addDays(prevDate, 1));
+    if (dates[i] === nextExpected) { cur++; best = Math.max(best, cur); }
+    else { cur = 1; }
+  }
+  return best;
+}
+
+function renderJournalReview(panel) {
+  const allEntries = Object.entries(appData.journal)
+    .filter(([,jd]) => journalHasContent(jd))
+    .sort((a,b) => b[0].localeCompare(a[0]));
+
+  // "On this day" callouts
+  let onThisDayHtml = '';
+  const lookbacks = [['یک ماه پیش امروز', 30], ['یک سال پیش امروز', 365]];
+  for (const [label, days] of lookbacks) {
+    const targetDs = jalali.format(jalali.addDays(new Date(), -days));
+    const jd = appData.journal[targetDs];
+    if (jd && journalHasContent(jd)) {
+      const p = jalali.parseJalali(targetDs);
+      const dateFull = jalali.formatFull(jalali.jToJsDate(p.jy,p.jm,p.jd));
+      const snippetParts = [...(jd.morningAnswers||[]), jd.morning||'', ...(jd.eveningAnswers||[]), jd.evening||''].filter(Boolean);
+      const snippet = snippetParts.join(' — ').substring(0,160);
+      onThisDayHtml += `
+        <div class="card mb-16" style="border-color:var(--gold);cursor:pointer;" data-action="goToJournalDateAndEdit" data-params='{"ds":"${targetDs}"}'>
+          <div class="card-header"><span class="card-title" style="color:var(--gold);">🕰️ ${label}</span></div>
+          <div class="text-sm text-dim mb-8">${escapeHtml(dateFull)}</div>
+          <div>${escapeHtml(snippet)}${snippetParts.join('').length > 160 ? '…' : ''}</div>
+        </div>`;
+    }
+  }
+
+  // Stats
+  const totalDaysWritten = allEntries.length;
+  const bestStreak = calcJournalWritingStreak();
+  const tagTally = {};
+  allEntries.forEach(([,jd]) => (jd.tags||[]).forEach(t => tagTally[t] = (tagTally[t]||0)+1));
+  const topTagEntry = Object.entries(tagTally).sort((a,b)=>b[1]-a[1])[0];
+
+  const statsHtml = `
+    <div class="stats-grid mb-16" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+      <div class="stat-card"><div class="stat-icon">📖</div><div class="stat-value text-accent">${totalDaysWritten}</div><div class="stat-label">روز نوشته‌شده</div></div>
+      <div class="stat-card"><div class="stat-icon">🔥</div><div class="stat-value" style="color:var(--gold);">${bestStreak}</div><div class="stat-label">بلندترین رشته نوشتن</div></div>
+      <div class="stat-card"><div class="stat-icon">🏷️</div><div class="stat-value text-sm" style="color:var(--purple);">${topTagEntry ? escapeHtml(topTagEntry[0]) : '—'}</div><div class="stat-label">پرتکرارترین برچسب</div></div>
+    </div>`;
+
+  // Group by Jalali month
+  const groups = {};
+  const groupOrder = [];
+  for (const [entryDs, jd] of allEntries) {
+    const p = jalali.parseJalali(entryDs);
+    const groupKey = `${jalali.monthNames[p.jm-1]} ${p.jy}`;
+    if (!groups[groupKey]) { groups[groupKey] = []; groupOrder.push(groupKey); }
+    groups[groupKey].push([entryDs, jd]);
+  }
+
+  const entriesHtml = groupOrder.map(groupKey => {
+    const rows = groups[groupKey].map(([entryDs, jd]) => {
+      const p = jalali.parseJalali(entryDs);
+      const dateFull = jalali.formatFull(jalali.jToJsDate(p.jy,p.jm,p.jd));
+      const dayMood = (appData.mood[entryDs]||{}).mood;
+      const moodEmoji = dayMood ? JOURNAL_MOOD_EMOJIS[dayMood] : '';
+
+      const parts = [];
+      (jd.morningAnswers||[]).forEach((a,i) => { if (a) parts.push(`<div class="review-prompt">🌅 ${escapeHtml(JOURNAL_MORNING_PROMPTS[i]||'')}</div><div class="review-answer">${escapeHtml(a)}</div>`); });
+      if (jd.morning) parts.push(`<div class="review-answer">${escapeHtml(jd.morning)}</div>`);
+      (jd.eveningAnswers||[]).forEach((a,i) => { if (a) parts.push(`<div class="review-prompt">🌙 ${escapeHtml(JOURNAL_EVENING_PROMPTS[i]||'')}</div><div class="review-answer">${escapeHtml(a)}</div>`); });
+      if (jd.evening) parts.push(`<div class="review-answer">${escapeHtml(jd.evening)}</div>`);
+
+      const hd = appData.habits[entryDs] || {};
+      const habitNotes = Object.entries(hd)
+        .filter(([k,v]) => v && v.notes && HABIT_DEFS[k])
+        .map(([k,v]) => `<span class="badge" style="font-size:11px;">${HABIT_DEFS[k].icon} ${escapeHtml(v.notes)}</span>`)
+        .join(' ');
+
+      const tags = (jd.tags||[]).map(t=>`<span class="badge badge-purple" style="font-size:10px;">${escapeHtml(t)}</span>`).join(' ');
+
+      return `
+        <div class="review-entry" style="cursor:pointer;" data-action="goToJournalDateAndEdit" data-params='{"ds":"${entryDs}"}'>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span class="fw-600">${escapeHtml(dateFull)}</span>
+            <span>${moodEmoji}</span>
+          </div>
+          <div>${parts.join('') || '<span class="text-faint">بدون متن</span>'}</div>
+          ${tags ? `<div class="mt-8">${tags}</div>` : ''}
+          ${habitNotes ? `<div class="mt-8">${habitNotes}</div>` : ''}
+        </div>`;
+    }).join('');
+    return `<div class="mb-24"><div class="section-title">${escapeHtml(groupKey)}</div>${rows}</div>`;
+  }).join('') || `<div class="empty-state">
+      <div class="empty-icon">📖</div>
+      <h3>هنوز چیزی برای مرور نیست</h3>
+      <p>چند روز بنویس تا اینجا برات جمع بشه</p>
+    </div>`;
+
+  panel.innerHTML = `
+    ${journalTabsHtml('review')}
+    ${onThisDayHtml}
+    ${statsHtml}
+    ${entriesHtml}
+  `;
+}
+
 function renderJournal() {
   const panel = document.getElementById('tab-journal');
   if (journalViewMode === 'list') { renderJournalList(panel); return; }
-  const ds = localDateStr();
+  if (journalViewMode === 'review') { renderJournalReview(panel); return; }
+  const ds = jalali.format(selectedDate);
   const jd = getDayJournal(ds);
+  const md = getDayMood(ds);
   panel.innerHTML = `
     <div class="day-nav">
       <button data-action="navDay" data-params='{"delta":1}'>→</button>
       <span class="current-date">${jalali.formatFull(selectedDate)}</span>
       <button data-action="navDay" data-params='{"delta":-1}'>←</button>
     </div>
-    <div class="journal-tabs mb-16">
-      <button class="active">✏️ ویرایشگر</button>
-      <button data-action="switchJournalViewMode" data-params='{"mode":"list"}'>📋 لیست</button>
-      <button data-action="exportJournalMarkdown">📄 خروجی MD</button>
-    </div>
+    ${journalTabsHtml('editor')}
     <div class="card mb-16" style="border-color:var(--accent);">
       <div class="card-header"><span class="card-title" style="color:var(--accent);">🌅 صبح</span></div>
       ${JOURNAL_MORNING_PROMPTS.map((p,i)=>`<div class="journal-prompt">${escapeHtml(p)}</div><textarea id="j-morning-${i}" rows="2" placeholder="پاسخ..." oninput="autoSaveJournal()">${escapeHtml((jd.morningAnswers&&jd.morningAnswers[i])||'')}</textarea>`).join('')}
@@ -3703,14 +3722,20 @@ function renderJournal() {
       </div>
     </div>
     <div class="card mb-16">
-      <div class="card-header"><span class="card-title">😊 حالت و برچسب‌ها</span></div>
+      <div class="card-header"><span class="card-title">😊 حالت، انرژی و برچسب‌ها</span></div>
       <div class="form-group"><label>حالت روحی (۱-۱۰)</label>
         <div class="mood-selector">${[1,2,3,4,5,6,7,8,9,10].map(n=>
-          `<button class="mood-btn ${(jd.mood||5)===n?'selected':''}" data-action="setJournalMood" data-params='{"n":${n}}' title="${escapeHtml(JOURNAL_MOOD_EMOJIS[n])}">${JOURNAL_MOOD_EMOJIS[n]}</button>`
+          `<button class="mood-btn ${(md.mood||5)===n?'selected':''}" data-action="setJournalMood" data-params='{"n":${n}}' title="${escapeHtml(JOURNAL_MOOD_EMOJIS[n])}">${JOURNAL_MOOD_EMOJIS[n]}</button>`
         ).join('')}</div>
-        <div class="mono text-sm text-dim mt-8">${jd.mood||5} / ۱۰ — ${JOURNAL_MOOD_EMOJIS[jd.mood||5]}</div>
+        <div class="mono text-sm text-dim mt-8">${md.mood||5} / ۱۰ — ${JOURNAL_MOOD_EMOJIS[md.mood||5]}</div>
       </div>
-      <div class="form-group"><label>برچسب‌ها</label>
+      <div class="form-group mt-16"><label>⚡ انرژی: <span class="mono" id="j-energy-val">${md.energy||5} / ۱۰</span></label>
+        <input type="range" min="1" max="10" value="${md.energy||5}" data-action-input="setJournalMoodField" data-params-input='{"key":"energy"}'>
+      </div>
+      <div class="form-group mt-16"><label>😰 استرس: <span class="mono" id="j-stress-val">${md.stress||5} / ۱۰</span></label>
+        <input type="range" min="1" max="10" value="${md.stress||5}" data-action-input="setJournalMoodField" data-params-input='{"key":"stress"}'>
+      </div>
+      <div class="form-group mt-16"><label>برچسب‌ها</label>
         <div class="tag-group">${JOURNAL_TAGS.map(t=>
           `<button class="tag-btn ${(jd.tags||[]).includes(t)?'active':''}" data-action="toggleJournalTag" data-params='{"tag":"${t}"}'>${escapeHtml(t)}</button>`
         ).join('')}</div>
@@ -3727,20 +3752,28 @@ function autoSaveJournal() {
 }
 function setJournalMood(nOrParams) {
   const n = typeof nOrParams === 'object' ? nOrParams.n : nOrParams;
-  const jd = getDayJournal(localDateStr());
-  jd.mood = n; saveAll(); renderJournal();
+  const md = getDayMood(jalali.format(selectedDate));
+  md.mood = n; saveAll(); renderJournal();
+}
+
+function setJournalMoodField(field, val) {
+  const md = getDayMood(jalali.format(selectedDate));
+  md[field] = +val;
+  saveAll();
+  const label = document.getElementById('j-' + field + '-val');
+  if (label) label.textContent = val + ' / ۱۰';
 }
 function toggleJournalTag(tagOrParams) {
   const tag = typeof tagOrParams === 'string' ? tagOrParams : (tagOrParams && tagOrParams.tag);
   if (!tag) return;
-  const jd = getDayJournal(localDateStr());
+  const jd = getDayJournal(jalali.format(selectedDate));
   if (!jd.tags) jd.tags = [];
   const idx = jd.tags.indexOf(tag);
   if (idx >= 0) jd.tags.splice(idx, 1); else jd.tags.push(tag);
   saveAll(); renderJournal();
 }
 function saveJournalEntry() {
-  const ds = localDateStr();
+  const ds = jalali.format(selectedDate);
   const jd = getDayJournal(ds);
   jd.morning = (document.getElementById('j-morning') || {value:''}).value || '';
   jd.evening = (document.getElementById('j-evening') || {value:''}).value || '';
@@ -3755,7 +3788,7 @@ function saveJournalEntry() {
   saveAll(); toast('📝 یادداشت ذخیره شد', 'success');
 }
 function clearJournalEntry() {
-  const ds = localDateStr();
+  const ds = jalali.format(selectedDate);
   const backup = appData.journal[ds];
   if (!backup) return;
   deleteWithUndo('یادداشت امروز پاک شد', () => {
@@ -3766,6 +3799,19 @@ function clearJournalEntry() {
     saveAll(); renderJournal();
   });
 }
+function deleteJournalEntry(dsOrParams) {
+  const ds = typeof dsOrParams === 'object' ? dsOrParams.ds : dsOrParams;
+  const backup = appData.journal[ds];
+  if (!backup) return;
+  deleteWithUndo('یادداشت حذف شد', () => {
+    appData.journal[ds] = backup;
+    saveAll(); renderJournalList(document.getElementById('tab-journal'));
+  }, () => {
+    delete appData.journal[ds];
+    saveAll(); renderJournalList(document.getElementById('tab-journal'));
+  });
+}
+
 function renderJournalList(panel) {
   let entries = Object.entries(appData.journal).sort((a,b)=>b[0].localeCompare(a[0]));
   if (journalSearchQuery) {
@@ -3775,7 +3821,7 @@ function renderJournalList(panel) {
       return t.includes(q);
     });
   }
-  if (journalFilterMood > 0) entries = entries.filter(([,jd])=>jd.mood===journalFilterMood);
+  if (journalFilterMood > 0) entries = entries.filter(([ds])=>(appData.mood[ds]||{}).mood===journalFilterMood);
   if (journalFilterTags.length > 0) entries = entries.filter(([,jd])=>journalFilterTags.every(t=>(jd.tags||[]).includes(t)));
   if (journalFilterDateFrom) entries = entries.filter(([ds])=>ds>=journalFilterDateFrom);
   if (journalFilterDateTo) entries = entries.filter(([ds])=>ds<=journalFilterDateTo);
@@ -3793,16 +3839,27 @@ function renderJournalList(panel) {
     calCells += `<div class="day-cell ${isToday?'today':''}" style="${hasJ?'background:var(--purple);':''}" data-action="goToDate" data-params='{"dateStr":"${jDate}"}'>${d}${hasJ?'<div class="dot" style="background:var(--purple);"></div>':''}</div>`;
   }
   let listHtml = entries.map(([ds,jd]) => {
-    const text = escapeHtml([jd.morning||'',jd.evening||''].filter(Boolean).join(' | ').substring(0,100));
+    const previewParts = [
+      ...(jd.morningAnswers||[]).filter(Boolean),
+      jd.morning||'',
+      ...(jd.eveningAnswers||[]).filter(Boolean),
+      jd.evening||''
+    ].filter(Boolean);
+    const text = escapeHtml(previewParts.join(' | ').substring(0,100));
     const p = jalali.parseJalali(ds);
     const dateFull = jalali.formatFull(jalali.jToJsDate(p.jy,p.jm,p.jd));
-    const moodEmoji = JOURNAL_MOOD_EMOJIS[jd.mood||5];
+    const dayMood = (appData.mood[ds]||{}).mood;
+    const moodEmoji = JOURNAL_MOOD_EMOJIS[dayMood||5];
     const tags = (jd.tags||[]).map(t=>`<span class="badge badge-purple" style="font-size:10px;">${escapeHtml(t)}</span>`).join(' ');
-    return `<div class="journal-entry-card" data-action="goToJournalDateAndEdit" data-params='{"ds":"${ds}"}'>
-      <div class="journal-entry-date">${escapeHtml(dateFull)} ${moodEmoji} ${jd.mood||'-'}
-        ${tags}
+    return `<div class="journal-entry-card">
+      <div class="journal-entry-date" style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;" data-action="goToJournalDateAndEdit" data-params='{"ds":"${ds}"}'>
+        <span>${escapeHtml(dateFull)} ${moodEmoji} ${dayMood||'-'} ${tags}</span>
+        <span style="display:flex;gap:4px;flex-shrink:0;">
+          <button class="btn btn-sm" data-action="goToJournalDateAndEdit" data-params='{"ds":"${ds}"}' title="ویرایش" style="padding:2px 8px;">✏️</button>
+          <button class="btn btn-sm btn-danger" data-action="deleteJournalEntry" data-params='{"ds":"${ds}"}' title="حذف" style="padding:2px 8px;">🗑️</button>
+        </span>
       </div>
-      <div class="journal-entry-preview">${text||'<span class="text-faint">خالی</span>'}</div>
+      <div class="journal-entry-preview" style="cursor:pointer;" data-action="goToJournalDateAndEdit" data-params='{"ds":"${ds}"}'>${text||'<span class="text-faint">خالی</span>'}</div>
     </div>`;
   }).join('') || `<div class="empty-state">
     <div class="empty-icon">📝</div>
@@ -3811,11 +3868,7 @@ function renderJournalList(panel) {
     <button class="btn btn-primary btn-sm" data-action="switchJournalViewMode" data-params='{"mode":"editor"}'>✏️ نوشتن اولین یادداشت</button>
   </div>`;
   panel.innerHTML = `
-    <div class="journal-tabs mb-16">
-      <button data-action="switchJournalViewMode" data-params='{"mode":"editor"}'>✏️ ویرایشگر</button>
-      <button class="active">📋 لیست</button>
-      <button data-action="exportJournalMarkdown">📄 خروجی MD</button>
-    </div>
+    ${journalTabsHtml('list')}
     <div class="card mb-16"><div class="card-header"><span class="card-title">🔍 جستجو و فیلتر</span></div>
       <div class="journal-search-bar"><input type="text" placeholder="جستجو..." value="${escapeHtml(journalSearchQuery)}" data-action-input="setJournalSearchQuery"></div>
       <div class="filter-row">
@@ -3861,7 +3914,8 @@ function exportJournalMarkdown() {
   const entries = Object.entries(appData.journal).sort((a,b)=>b[0].localeCompare(a[0]));
   for (const [ds,jd] of entries) {
     md += `## ${ds}\n\n`;
-    if (jd.mood) md += `**حالت:** ${JOURNAL_MOOD_EMOJIS[jd.mood]} ${jd.mood}/10\n\n`;
+    const exMood = (appData.mood[ds]||{}).mood;
+    if (exMood) md += `**حالت:** ${JOURNAL_MOOD_EMOJIS[exMood]} ${exMood}/10\n\n`;
     if (jd.tags&&jd.tags.length) md += `**برچسب‌ها:** ${jd.tags.join(', ')}\n\n`;
     if (jd.morningAnswers&&jd.morningAnswers.some(a=>a)) { md += '### صبح\n\n'; jd.morningAnswers.forEach((a,i)=>{if(a) md+=`**${JOURNAL_MORNING_PROMPTS[i]}**\n${a}\n\n`;}); }
     if (jd.morning) md += `**یادداشت صبح:**\n${jd.morning}\n\n`;
@@ -4148,7 +4202,7 @@ function renderAnalytics() {
       <div class="empty-icon">📊</div>
       <h3>داده کافی نیست</h3>
       <p>برای نمایش تحلیل‌ها، حداقل ۷ روز عادت ثبت کنید.</p>
-      <button class="btn btn-primary btn-sm" data-action="switchTab" data-params='{"tabId":"habits"}'>🎯 ثبت عادات</button>
+      <button class="btn btn-primary btn-sm" data-action="switchTab" data-params='{"tabId":"dashboard"}'>🎯 ثبت عادات</button>
     </div>`;
     return;
   }
@@ -4250,6 +4304,9 @@ function renderAnalytics() {
 
   const habitBarsHtml = Object.entries(d.habitRates).map(([key, pct]) => {
     const def = HABIT_DEFS[key];
+    if (!def) return '';
+    const curStreak = calcStreak(key);
+    const bestStreak = calcBestStreak(key);
     return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
       <span style="width:30px;">${def.icon}</span>
       <span style="width:60px;font-size:12px;color:var(--text-dim);">${def.name}</span>
@@ -4257,6 +4314,7 @@ function renderAnalytics() {
         <div style="height:100%;width:${pct}%;background:${def.color};border-radius:4px;transition:width 0.5s ease;"></div>
       </div>
       <span class="mono text-sm fw-600" style="min-width:36px;text-align:left;">${pct}%</span>
+      <span class="text-sm text-dim" style="min-width:78px;text-align:left;white-space:nowrap;" title="استریک فعلی · بهترین استریک">🔥${curStreak} · 🏆${bestStreak}</span>
     </div>`;
   }).join('');
 
